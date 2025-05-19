@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -55,6 +16,8 @@
             --accent-silver: #C0C0C0;
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             --border: 1px solid rgba(255, 255, 255, 0.1);
+            --button-secondary-bg: #2A2A2E;
+            --button-secondary-border: #D4AF37;
         }
 
         body {
@@ -120,6 +83,36 @@
             color: #FF4D4D;
         }
 
+        .progress {
+            margin: 15px 0;
+            color: var(--text-primary);
+            font-size: 16px;
+            display: none;
+        }
+
+        .progress.active {
+            display: block;
+        }
+
+        .instructions {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .instructions h3 {
+            margin: 0 0 10px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            color: var(--text-heading);
+        }
+        
+        
+        
+
         .video-container {
             display: flex;
             flex-wrap: wrap;
@@ -155,6 +148,13 @@
         .target-canvas {
             background: black;
             width: 100%;
+            max-width: 100%;
+        }
+
+        .hidden-canvas {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
         }
 
         .controls {
@@ -261,7 +261,7 @@
         }
 
         .fragment-item.active {
-            background: var(--accent-gold);
+            background: #d4af37ab;
             color: #1A1A1E;
         }
 
@@ -396,17 +396,39 @@
         }
 
         .fragment-controls input, .fragment-controls select {
-            width: 100%;
+            width: 90%;
             padding: 8px;
             border: 1px solid var(--accent-gold);
             border-radius: 6px;
             background: rgba(255, 255, 255, 0.05);
             color: var(--text-primary);
             font-size: 14px;
-            transition: border-color 0.3s ease;
+            transition: border-color 0.3s ease, background 0.3s ease;
         }
 
-        .fragment-controls input:focus, .fragment-controls select:focus {
+        .fragment-controls select {
+            background: var(--button-secondary-bg);
+            border: 2px solid var(--button-secondary-border);
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%23D4AF37" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 30px;
+        }
+
+        .fragment-controls select:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-silver);
+        }
+
+        .fragment-controls select:focus {
+            border-color: var(--accent-silver);
+            outline: none;
+        }
+
+        .fragment-controls input:focus {
             border-color: var(--accent-silver);
             outline: none;
         }
@@ -435,18 +457,6 @@
             box-shadow: 0 0 10px rgba(212, 160, 23, 0.3);
         }
 
-        .progress {
-            margin: 20px 0;
-            display: none;
-            font-size: 16px;
-            color: var(--text-primary);
-        }
-
-        .progress.active {
-            display: block;
-        }
-
-        /* Кастомизация input[type="file"] */
         .file-upload-wrapper {
             position: relative;
             display: inline-block;
@@ -462,6 +472,7 @@
             cursor: pointer;
         }
 
+        .custom-button,
         .file-upload-wrapper button {
             padding: 10px 20px;
             background: var(--accent-gold);
@@ -473,9 +484,103 @@
             cursor: pointer;
             transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
         }
-
+        
+        /* Стили наведения для всех кнопок */
+        .custom-button:hover,
         .file-upload-wrapper button:hover {
             background: var(--accent-silver);
+            transform: translateY(-2px);
+            box-shadow: 0 0 10px rgba(212, 160, 23, 0.3);
+        }
+        
+        /* Модификатор для второстепенных кнопок */
+        .custom-button.secondary {
+            background: var(--button-secondary-bg);
+            color: var(--text-primary);
+            border: 2px solid var(--button-secondary-border);
+        }
+        
+        /* Наведение для второстепенных кнопок */
+        .custom-button.secondary:hover {
+            background: var(--accent-silver);
+            color: #1A1A1E;
+            border-color: var(--accent-silver);
+        }
+        
+        /* Flex-стили для кнопок с иконками в .controls */
+        .controls .custom-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls .time-input-wrapper {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            width: 100px;
+        }
+
+        .controls .time-input-wrapper input[type="text"] {
+            width: 100%;
+            padding: 8px 8px 8px 30px;
+            border: 1px solid var(--accent-gold);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .controls .time-input-wrapper input[type="text"]:focus {
+            border-color: var(--accent-silver);
+            outline: none;
+        }
+
+        .controls .time-input-wrapper i {
+            position: absolute;
+            left: 8px;
+            color: var(--accent-gold);
+            font-size: 14px;
+        }
+
+        #export {
+            padding: 12px 30px;
+            background: var(--accent-gold);
+            color: #1A1A1E;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #export:hover {
+            background: var(--accent-silver);
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(212, 160, 23, 0.5);
+        }
+
+        #cancel-export {
+            padding: 10px 20px;
+            background: var(--button-secondary-bg);
+            color: var(--text-primary);
+            border: 2px solid var(--button-secondary-border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        #cancel-export:hover {
+            background: var(--accent-silver);
+            color: #1A1A1E;
+            border-color: var(--accent-silver);
             transform: translateY(-2px);
             box-shadow: 0 0 10px rgba(212, 160, 23, 0.3);
         }
@@ -497,6 +602,17 @@
                 padding: 8px 16px;
                 font-size: 12px;
             }
+            .controls .custom-button {
+                padding: 8px 16px;
+                font-size: 12px;
+            }
+            #export {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            .instructions {
+                font-size: 12px;
+            }
         }
     </style>
 </head>
@@ -509,8 +625,34 @@
         </div>
         <div class="section-content active">
             <div class="file-upload-wrapper">
-                <button>Choose Video</button>
+                <button class="custom-button"><i class="fas fa-upload"></i> Choose Video</button>
                 <input type="file" id="video-upload" accept="video/mp4,video/webm">
+            </div>
+            <div class="instructions-container">
+                <div class="description">
+                    <h3>About the Program</h3>
+                    <p>
+                        This program is designed to help you edit and format videos for mobile devices. Its main purpose is to create optimized video fragments that fit perfectly on mobile screens, ensuring a seamless viewing experience.
+                    </p>
+                    <p><strong>Key Features:</strong></p>
+                    <ul>
+                        <li>Upload videos in MP4 format and split them into fragments.</li>
+                        <li>Adjust fragment positions and sizes for mobile-friendly viewing.</li>
+                        <li>Preview and fine-tune fragments with easy-to-use controls.</li>
+                        <li>Export your edited video in WebM format for mobile compatibility.</li>
+                    </ul>
+                </div>
+                <div class="instructions">
+                    <h3>How to Use</h3>
+                    <ol>
+                        <li>Upload a video using the <strong>"Choose Video"</strong> button (in MP4 format).</li>
+                        <li>On the <strong>"Source Video"</strong> tab, add fragments for formatting the video for a mobile screen by clicking <strong>"Add Fragments"</strong>.</li>
+                        <li>On the additional video panel, adjust the position and size of the fragment (only the fragment selected in the list can be edited).</li>
+                        <li>Go to the <strong>"Target Video"</strong> tab and arrange the fragments for convenient viewing on a mobile device (only the fragment selected in the list can be edited; use the mouse wheel to adjust the size).</li>
+                        <li>On the <strong>"Fragment Controls"</strong> tab, you can also quickly center the fragment in the target video, reset the scale, or fit the fragment to the dimensions.</li>
+                        <li>After arranging the fragments, click the <strong>"Process & Download"</strong> button to export the result in WebM format.</li>
+                    </ol>
+                </div>
             </div>
             <div id="status" class="status"></div>
         </div>
@@ -528,21 +670,28 @@
                     <video id="source-video" controls></video>
                     <canvas id="source-canvas" class="source-canvas"></canvas>
                 </div>
-            </div>
-            <div class="controls">
-                <button id="play-pause"><i class="fas fa-play"></i></button>
-                <input type="range" id="seek-bar" min="0" value="0">
-                <span id="current-time">00:00</span>
-                <input type="text" id="start-time-input" placeholder="mm:ss">
-                <input type="text" id="end-time-input" placeholder="mm:ss">
-                <button id="add-fragment">Add Fragment</button>
-                <button id="export-fragments">Export Fragments</button>
-                <div class="file-upload-wrapper">
-                    <button id="import-fragments-btn">Import Fragments</button>
-                    <input type="file" id="import-fragments" accept="application/json">
+                    <div class="controls">
+                        <button class="custom-button secondary" id="play-pause" aria-label="Play or pause video"><i class="fas fa-play"></i> Play/Pause</button>
+                        <input type="range" id="seek-bar" min="0" value="0" aria-label="Seek video timeline">
+                        <span id="current-time">00:00</span>
+                        <div class="time-input-wrapper">
+                            <i class="fas fa-clock"></i>
+                            <input type="text" id="start-time-input" placeholder="mm:ss" aria-label="Set fragment start time">
+                        </div>
+                        <div class="time-input-wrapper">
+                            <i class="fas fa-clock"></i>
+                            <input type="text" id="end-time-input" placeholder="mm:ss" aria-label="Set fragment end time">
+                        </div>
+                        <button class="custom-button" id="add-fragment" aria-label="Add new video fragment"><i class="fas fa-plus"></i> Add Fragment</button>
+                        <div class="file-upload-wrapper">
+                            <button class="custom-button secondary" id="export-fragments" aria-label="Export fragments to JSON"><i class="fas fa-download"></i> Export</button>
+                        </div>
+                        <div class="file-upload-wrapper">
+                            <button class="custom-button secondary" id="import-fragments-btn" aria-label="Import fragments from JSON"><i class="fas fa-upload"></i> Import </button>
+                        </div>
+                        <input type="file" id="import-fragments" accept="application/json" style="display: none;">
+                    </div>
                 </div>
-                <button id="reset-timings">Reset Fragment Timings</button>
-            </div>
             <div class="timeline" id="source-timeline">
                 <div class="timeline-range" id="timeline-range"></div>
                 <div class="handle" id="start-handle"></div>
@@ -565,6 +714,7 @@
                 </div>
                 <div class="control-content active"></div>
             </div>
+            </div>
         </div>
     </div>
 
@@ -578,10 +728,11 @@
             <div class="video-container">
                 <div class="canvas-wrapper">
                     <canvas id="target-canvas" class="target-canvas"></canvas>
+                    <canvas id="hidden-canvas" class="hidden-canvas"></canvas>
                 </div>
             </div>
             <div class="controls">
-                <button id="preview-play-pause"><i class="fas fa-play"></i></button>
+                <button class="custom-button secondary" id="preview-play-pause"><i class="fas fa-play"></i> Preview</button>
                 <input type="range" id="preview-seek" min="0" value="0">
                 <span id="preview-time">00:00</span>
                 <select id="canvas-format">
@@ -593,13 +744,10 @@
                 </select>
                 <input type="number" id="canvas-width" placeholder="Width" min="100" style="width: 80px; display: none;">
                 <input type="number" id="canvas-height" placeholder="Height" min="100" style="width: 80px; display: none;">
-                <button id="export">Process and Download</button>
-                <button id="cancel-export" style="display: none;">Cancel</button>
+                <button id="export" class="custom-button"><i class="fas fa-file-video"></i> Process & Download</button>
+                <button id="cancel-export" class="custom-button secondary" style="display: none;">Cancel</button>
             </div>
-            <div class="progress" id="export-progress">
-                Progress: <span id="progress-value">0%</span>
-            </div>
-            <div class="timeline" id="target-timeline"></div>
+            <div id="export-progress" class="progress">Exporting: 0%</div>
         </div>
     </div>
 
@@ -607,8 +755,10 @@
         let video = document.getElementById('source-video');
         const sourceCanvas = document.getElementById('source-canvas');
         const targetCanvas = document.getElementById('target-canvas');
+        const hiddenCanvas = document.getElementById('hidden-canvas');
         const sourceCtx = sourceCanvas.getContext('2d');
         const targetCtx = targetCanvas.getContext('2d');
+        const hiddenCtx = hiddenCanvas.getContext('2d');
         const uploadInput = document.getElementById('video-upload');
         const status = document.getElementById('status');
         const playPauseBtn = document.getElementById('play-pause');
@@ -620,7 +770,6 @@
         const exportFragmentsBtn = document.getElementById('export-fragments');
         const importFragmentsInput = document.getElementById('import-fragments');
         const importFragmentsBtn = document.getElementById('import-fragments-btn');
-        const resetTimingsBtn = document.getElementById('reset-timings');
         const timeline = document.getElementById('source-timeline');
         const timelineRange = document.getElementById('timeline-range');
         const startHandle = document.getElementById('start-handle');
@@ -633,12 +782,10 @@
         const previewTime = document.getElementById('preview-time');
         const exportBtn = document.getElementById('export');
         const cancelExportBtn = document.getElementById('cancel-export');
-        const exportProgress = document.getElementById('export-progress');
-        const progressValue = document.getElementById('progress-value');
-        const targetTimeline = document.getElementById('target-timeline');
         const canvasFormatSelect = document.getElementById('canvas-format');
         const canvasWidthInput = document.getElementById('canvas-width');
         const canvasHeightInput = document.getElementById('canvas-height');
+        const exportProgress = document.getElementById('export-progress');
 
         let fragments = [];
         let activeFragment = null;
@@ -661,14 +808,64 @@
         let audioStream = null;
         let isExporting = false;
         let videoSrc = '';
+        let dragStartX = 0;
+        let dragStartY = 0;
 
         // Инициализация размеров canvas
         let targetCanvasWidth = 540;
         let targetCanvasHeight = 960;
+        let renderCanvasWidth = targetCanvasWidth;
+        let renderCanvasHeight = targetCanvasHeight;
+
+        // Установка начальных размеров canvas
         targetCanvas.width = targetCanvasWidth;
         targetCanvas.height = targetCanvasHeight;
         targetCanvas.style.width = `${targetCanvasWidth}px`;
         targetCanvas.style.height = `${targetCanvasHeight}px`;
+        hiddenCanvas.width = renderCanvasWidth;
+        hiddenCanvas.height = renderCanvasHeight;
+
+        function updateCanvasSize(width, height) {
+            renderCanvasWidth = width;
+            renderCanvasHeight = height;
+            hiddenCanvas.width = width;
+            hiddenCanvas.height = height;
+
+            // Адаптация видимого canvas с сохранением пропорций
+            const containerWidth = document.querySelector('.canvas-wrapper').offsetWidth;
+            const aspectRatio = width / height;
+            let displayWidth = Math.min(containerWidth, width);
+            let displayHeight = displayWidth / aspectRatio;
+
+            // Проверка, чтобы высота не превышала контейнер, если контейнер ограничен по высоте
+            const containerHeight = document.querySelector('.canvas-wrapper').offsetHeight || window.innerHeight;
+            if (displayHeight > containerHeight) {
+                displayHeight = containerHeight;
+                displayWidth = displayHeight * aspectRatio;
+            }
+
+            targetCanvas.width = displayWidth;
+            targetCanvas.height = displayHeight;
+            targetCanvas.style.width = `${displayWidth}px`;
+            targetCanvas.style.height = `${displayHeight}px`;
+
+            // Масштабируем фрагменты для рендеринга
+            const scaleX = width / targetCanvasWidth;
+            const scaleY = height / targetCanvasHeight;
+            fragments.forEach(frag => {
+                frag.x = Math.min(frag.x * scaleX, width - frag.width * frag.scale);
+                frag.y = Math.min(frag.y * scaleY, height - frag.height * frag.scale);
+                frag.scale = frag.scale * Math.min(scaleX, scaleY);
+            });
+
+            targetCanvasWidth = width;
+            targetCanvasHeight = height;
+
+            updateFragmentControls();
+            renderTargetFrame();
+            status.textContent = `Canvas size updated to ${width}x${height}.`;
+            status.classList.remove('error');
+        }
 
         function toggleSection(header) {
             const content = header.nextElementSibling;
@@ -753,7 +950,6 @@
                 seekBar.max = videoDuration;
                 previewSeek.max = videoDuration;
 
-                // Обновляем фрагменты с привязкой к концу
                 fragments.forEach(frag => {
                     if (frag.bindEnd) {
                         frag.end = videoDuration;
@@ -781,7 +977,6 @@
             video.load();
         });
 
-        // Экспорт фрагментов
         exportFragmentsBtn.addEventListener('click', () => {
             if (fragments.length === 0) {
                 status.textContent = 'No fragments to export.';
@@ -809,7 +1004,6 @@
             status.classList.remove('error');
         });
 
-        // Импорт фрагментов
         importFragmentsBtn.addEventListener('click', () => {
             importFragmentsInput.click();
         });
@@ -855,42 +1049,6 @@
             reader.readAsText(file);
         });
 
-        // Сброс таймингов фрагментов
-        resetTimingsBtn.addEventListener('click', () => {
-            if (fragments.length === 0) {
-                status.textContent = 'No fragments to reset.';
-                status.classList.add('error');
-                return;
-            }
-            if (!videoDuration) {
-                status.textContent = 'No video loaded to set timings.';
-                status.classList.add('error');
-                return;
-            }
-            const oldTimings = fragments.map(frag => ({
-                fragment: frag,
-                start: frag.start,
-                end: frag.end,
-                bindStart: frag.bindStart,
-                bindEnd: frag.bindEnd
-            }));
-            fragments.forEach(frag => {
-                frag.start = 0;
-                frag.end = videoDuration;
-                frag.bindStart = true;
-                frag.bindEnd = true;
-            });
-            undoStack.push({ action: 'reset-timings', timings: oldTimings });
-            updateFragmentList();
-            updateTimeline();
-            updateFragmentControls();
-            renderSourceFrame();
-            renderTargetFrame();
-            status.textContent = 'Fragment timings reset to full video duration.';
-            status.classList.remove('error');
-        });
-
-        // Обработка выбора формата canvas
         canvasFormatSelect.addEventListener('change', () => {
             const value = canvasFormatSelect.value;
             if (value === 'custom') {
@@ -928,39 +1086,14 @@
             }
         });
 
-        function updateCanvasSize(width, height) {
-            const oldWidth = targetCanvasWidth;
-            const oldHeight = targetCanvasHeight;
-            targetCanvasWidth = width;
-            targetCanvasHeight = height;
-            targetCanvas.width = width;
-            targetCanvas.height = height;
-            targetCanvas.style.width = `${width}px`;
-            targetCanvas.style.height = `${height}px`;
-
-            // Масштабируем фрагменты
-            const scaleX = width / oldWidth;
-            const scaleY = height / oldHeight;
-            fragments.forEach(frag => {
-                frag.x = Math.min(frag.x * scaleX, width - frag.width * frag.scale);
-                frag.y = Math.min(frag.y * scaleY, height - frag.height * frag.scale);
-                frag.scale = frag.scale * Math.min(scaleX, scaleY);
-            });
-
-            updateFragmentControls();
-            renderTargetFrame();
-            status.textContent = `Canvas size updated to ${width}x${height}.`;
-            status.classList.remove('error');
-        }
-
         playPauseBtn.addEventListener('click', togglePlayPause);
         function togglePlayPause() {
             if (video.paused) {
                 video.play();
-                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i> Play/Pause';
             } else {
                 video.pause();
-                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play/Pause';
             }
         }
 
@@ -1070,13 +1203,12 @@
 
         function updateFragmentList() {
             fragmentList.innerHTML = '';
-            targetTimeline.innerHTML = '';
             fragments.forEach((frag, i) => {
                 const div = document.createElement('div');
                 div.className = 'fragment-item';
                 if (frag === activeFragment) div.className += ' active';
                 div.onclick = () => {
-                    if (frag === activeFragment) return; // Игнорируем повторный выбор
+                    if (frag === activeFragment) return;
                     activeFragment = frag;
                     updateFragmentList();
                     updateFragmentControls();
@@ -1084,13 +1216,11 @@
                     renderTargetFrame();
                 };
 
-                // Название фрагмента
                 const nameDiv = document.createElement('div');
                 nameDiv.className = 'name';
                 nameDiv.textContent = `Fragment ${i + 1}`;
                 div.appendChild(nameDiv);
 
-                // Чекбокс и поле Start
                 const startDiv = document.createElement('div');
                 startDiv.className = 'timing';
                 const startCheckbox = document.createElement('input');
@@ -1143,7 +1273,6 @@
                 startDiv.appendChild(startInput);
                 div.appendChild(startDiv);
 
-                // Чекбокс и поле End
                 const endDiv = document.createElement('div');
                 endDiv.className = 'timing';
                 const endCheckbox = document.createElement('input');
@@ -1196,7 +1325,6 @@
                 endDiv.appendChild(endInput);
                 div.appendChild(endDiv);
 
-                // Кнопка блокировки
                 const lockDiv = document.createElement('div');
                 lockDiv.className = 'lock';
                 const lockBtn = document.createElement('button');
@@ -1217,7 +1345,6 @@
                 lockDiv.appendChild(lockBtn);
                 div.appendChild(lockDiv);
 
-                // Кнопка Duplicate
                 const dupDiv = document.createElement('div');
                 dupDiv.className = 'action';
                 const dupBtn = document.createElement('button');
@@ -1239,7 +1366,6 @@
                 dupDiv.appendChild(dupBtn);
                 div.appendChild(dupDiv);
 
-                // Кнопка Delete
                 const delDiv = document.createElement('div');
                 delDiv.className = 'action';
                 const delBtn = document.createElement('button');
@@ -1263,11 +1389,9 @@
 
                 fragmentList.appendChild(div);
 
-                // Таймлайн
                 const fragRange = document.createElement('div');
                 fragRange.className = 'fragment-range';
                 fragRange.id = `fragment-range-${i}`;
-                targetTimeline.appendChild(fragRange);
             });
             updateFragmentControls();
         }
@@ -1408,15 +1532,28 @@
         }
 
         function renderTargetFrame() {
+            const displayScaleX = targetCanvas.width / renderCanvasWidth;
+            const displayScaleY = targetCanvas.height / renderCanvasHeight;
+
             targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
             targetCtx.fillStyle = 'black';
             targetCtx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+
+            hiddenCtx.clearRect(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+            hiddenCtx.fillStyle = 'black';
+            hiddenCtx.fillRect(0, 0, hiddenCanvas.width, hiddenCanvas.height);
 
             fragments.forEach(frag => {
                 const fragStart = frag.bindStart ? 0 : frag.start;
                 const fragEnd = frag.bindEnd ? videoDuration : frag.end;
                 if (video.currentTime >= fragStart && video.currentTime <= fragEnd) {
                     targetCtx.drawImage(
+                        video,
+                        frag.sourceX, frag.sourceY, frag.width, frag.height,
+                        frag.x * displayScaleX, frag.y * displayScaleY,
+                        frag.width * frag.scale * displayScaleX, frag.height * frag.scale * displayScaleY
+                    );
+                    hiddenCtx.drawImage(
                         video,
                         frag.sourceX, frag.sourceY, frag.width, frag.height,
                         frag.x, frag.y, frag.width * frag.scale, frag.height * frag.scale
@@ -1426,8 +1563,8 @@
                     targetCtx.strokeStyle = 'red';
                     targetCtx.lineWidth = 2;
                     targetCtx.strokeRect(
-                        frag.x, frag.y,
-                        frag.width * frag.scale, frag.height * frag.scale
+                        frag.x * displayScaleX, frag.y * displayScaleY,
+                        frag.width * frag.scale * displayScaleX, frag.height * frag.scale * displayScaleY
                     );
                 }
             });
@@ -1456,6 +1593,8 @@
                 isResizingPoint = false;
             } else if (inCenter) {
                 isDragging = true;
+                dragStartX = x - activeFragment.sourceX;
+                dragStartY = y - activeFragment.sourceY;
             }
         });
 
@@ -1463,14 +1602,16 @@
             if (!activeFragment || activeFragment.locked) return;
             const sourceRect = sourceCanvas.getBoundingClientRect();
             const targetRect = targetCanvas.getBoundingClientRect();
+            const displayScaleX = targetCanvas.width / renderCanvasWidth;
+            const displayScaleY = targetCanvas.height / renderCanvasHeight;
 
             if (isDragging) {
                 const x = (e.clientX - sourceRect.left) * (video.videoWidth / sourceCanvas.width);
                 const y = (e.clientY - sourceRect.top) * (video.videoHeight / sourceCanvas.height);
                 undoStack.push({ action: 'edit', fragment: activeFragment, key: 'sourceX', oldValue: activeFragment.sourceX });
                 undoStack.push({ action: 'edit', fragment: activeFragment, key: 'sourceY', oldValue: activeFragment.sourceY });
-                activeFragment.sourceX = Math.max(0, Math.min(x - activeFragment.width / 2, video.videoWidth - activeFragment.width));
-                activeFragment.sourceY = Math.max(0, Math.min(y - activeFragment.height / 2, video.videoHeight - activeFragment.height));
+                activeFragment.sourceX = Math.max(0, Math.min(x - dragStartX, video.videoWidth - activeFragment.width));
+                activeFragment.sourceY = Math.max(0, Math.min(y - dragStartY, video.videoHeight - activeFragment.height));
                 renderSourceFrame();
                 updateFragmentControls();
             } else if (isResizing) {
@@ -1496,12 +1637,12 @@
                 renderSourceFrame();
                 updateFragmentControls();
             } else if (isDraggingTarget) {
-                const x = e.clientX - targetRect.left;
-                const y = e.clientY - targetRect.top;
+                const x = (e.clientX - targetRect.left) / displayScaleX;
+                const y = (e.clientY - targetRect.top) / displayScaleY;
                 undoStack.push({ action: 'edit', fragment: activeFragment, key: 'x', oldValue: activeFragment.x });
                 undoStack.push({ action: 'edit', fragment: activeFragment, key: 'y', oldValue: activeFragment.y });
-                activeFragment.x = Math.max(0, Math.min(x - (activeFragment.width * activeFragment.scale) / 2, targetCanvasWidth - activeFragment.width * activeFragment.scale));
-                activeFragment.y = Math.max(0, Math.min(y - (activeFragment.height * activeFragment.scale) / 2, targetCanvasHeight - activeFragment.height * activeFragment.scale));
+                activeFragment.x = Math.max(0, Math.min(x - dragStartX, targetCanvasWidth - activeFragment.width * activeFragment.scale));
+                activeFragment.y = Math.max(0, Math.min(y - dragStartY, targetCanvasHeight - activeFragment.height * activeFragment.scale));
                 renderTargetFrame();
                 updateFragmentControls();
             }
@@ -1518,15 +1659,18 @@
         targetCanvas.addEventListener('mousedown', (e) => {
             if (!activeFragment || activeFragment.locked) return;
             const rect = targetCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const displayScaleX = targetCanvas.width / renderCanvasWidth;
+            const displayScaleY = targetCanvas.height / renderCanvasHeight;
+            const x = (e.clientX - rect.left) / displayScaleX;
+            const y = (e.clientY - rect.top) / displayScaleY;
 
             const inCenter = x >= activeFragment.x && x <= activeFragment.x + activeFragment.width * activeFragment.scale &&
                              y >= activeFragment.y && y <= activeFragment.y + activeFragment.height * activeFragment.scale;
 
             if (inCenter) {
                 isDraggingTarget = true;
-                console.log('Started dragging target fragment at x:', x, 'y:', y);
+                dragStartX = x - activeFragment.x;
+                dragStartY = y - activeFragment.y;
             }
         });
 
@@ -1540,7 +1684,6 @@
             updateFragmentControls();
         });
 
-        // Снятие выбора фрагмента по Esc
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 activeFragment = null;
@@ -1561,7 +1704,7 @@
             if (isPreviewing) {
                 video.pause();
                 isPreviewing = false;
-                previewPlayPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                previewPlayPauseBtn.innerHTML = '<i class="fas fa-play"></i> Preview';
                 cancelAnimationFrame(previewFrameId);
             } else {
                 if (startTime >= endTime) {
@@ -1575,7 +1718,7 @@
                     status.classList.add('error');
                 });
                 isPreviewing = true;
-                previewPlayPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                previewPlayPauseBtn.innerHTML = '<i class="fas fa-pause"></i> Preview';
                 previewClip();
             }
         }
@@ -1586,7 +1729,7 @@
             if (video.currentTime >= endTime || video.paused) {
                 video.pause();
                 isPreviewing = false;
-                previewPlayPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                previewPlayPauseBtn.innerHTML = '<i class="fas fa-play"></i> Preview';
                 cancelAnimationFrame(previewFrameId);
                 return;
             }
@@ -1621,19 +1764,19 @@
             }
 
             isExporting = true;
+            exportProgress.classList.add('active');
+            exportProgress.textContent = 'Exporting: 0%';
             await cleanupExport();
 
-            exportProgress.classList.add('active');
             cancelExportBtn.style.display = 'inline-block';
             exportBtn.disabled = true;
-            progressValue.textContent = '0%';
 
             try {
                 video.pause();
                 video.currentTime = startTime;
 
-                videoStream = targetCanvas.captureStream(30);
-                console.log('Created video stream');
+                videoStream = hiddenCanvas.captureStream(30);
+                console.log('Created video stream from hidden canvas');
 
                 audioCtx = new AudioContext();
                 console.log('Created new AudioContext');
@@ -1660,6 +1803,7 @@
                 };
                 mediaRecorder.onstop = async () => {
                     console.log('MediaRecorder stopped, chunks:', recordedChunks.length);
+                    exportProgress.classList.remove('active');
                     if (recordedChunks.length > 0) {
                         const blob = new Blob(recordedChunks, { type: 'video/webm' });
                         const url = URL.createObjectURL(blob);
@@ -1679,6 +1823,7 @@
                     console.error('MediaRecorder error:', e);
                     status.textContent = 'Error during recording.';
                     status.classList.add('error');
+                    exportProgress.classList.remove('active');
                     cleanupExport();
                     isExporting = false;
                 };
@@ -1702,10 +1847,9 @@
                         mediaRecorder.stop();
                         return;
                     }
-                    const progress = ((currentTime - startTime) / (endTime - startTime)) * 100;
-                    progressValue.textContent = `${Math.round(progress)}%`;
+                    const progress = Math.round(((currentTime - startTime) / (endTime - startTime)) * 100);
+                    exportProgress.textContent = `Exporting: ${progress}%`;
                     renderTargetFrame();
-
                     const now = performance.now();
                     const delta = now - lastFrameTime;
                     lastFrameTime = now;
@@ -1742,141 +1886,141 @@
                 console.error('Export failed:', error);
                 status.textContent = `Export failed: ${error.message}`;
                 status.classList.add('error');
+                exportProgress.classList.remove('active');
                 await cleanupExport();
                 isExporting = false;
             }
         }
+cancelExportBtn.addEventListener('click', async () => {
+    console.log('Cancel export clicked');
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    video.pause();
+    exportProgress.classList.remove('active');
+    await cleanupExport();
+    isExporting = false;
+});
 
-        cancelExportBtn.addEventListener('click', async () => {
-            console.log('Cancel export clicked');
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-            }
-            video.pause();
-            await cleanupExport();
-            isExporting = false;
-        });
+async function cleanupExport() {
+    console.log('Cleaning up export resources');
 
-        async function cleanupExport() {
-            console.log('Cleaning up export resources');
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        console.log('Stopping MediaRecorder in cleanup');
+        mediaRecorder.stop();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    mediaRecorder = null;
+    recordedChunks = [];
 
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                console.log('Stopping MediaRecorder in cleanup');
-                mediaRecorder.stop();
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            mediaRecorder = null;
-            recordedChunks = [];
-
-            if (audioSource) {
-                try {
-                    audioSource.disconnect();
-                    console.log('AudioSource disconnected');
-                } catch (e) {
-                    console.error('Error disconnecting AudioSource:', e);
-                }
-                audioSource = null;
-            }
-            if (audioDestination) {
-                try {
-                    audioDestination.disconnect();
-                    console.log('AudioDestination disconnected');
-                } catch (e) {
-                    console.error('Error disconnecting AudioDestination:', e);
-                }
-                audioDestination = null;
-            }
-            if (audioCtx && audioCtx.state !== 'closed') {
-                try {
-                    await audioCtx.close();
-                    console.log('AudioContext closed');
-                } catch (e) {
-                    console.error('Error closing AudioContext:', e);
-                }
-                audioCtx = null;
-            }
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => {
-                    if (track.readyState === 'live') {
-                        track.stop();
-                        console.log('Video track stopped');
-                    }
-                });
-                videoStream = null;
-            }
-            if (audioStream) {
-                audioStream.getTracks().forEach(track => {
-                    if (track.readyState === 'live') {
-                        track.stop();
-                        console.log('Audio track stopped');
-                    }
-                });
-                audioStream = null;
-            }
-
-            reinitializeVideoElement();
-
-            exportProgress.classList.remove('active');
-            cancelExportBtn.style.display = 'none';
-            exportBtn.disabled = false;
-            console.log('Export button enabled:', !exportBtn.disabled);
-            video.ontimeupdate = null;
-            status.textContent = 'Export completed or cancelled.';
-            status.classList.remove('error');
-
-            exportBtn.removeEventListener('click', processVideo);
-            exportBtn.addEventListener('click', processVideo);
-            console.log('Export button click event rebound');
+    if (audioSource) {
+        try {
+            audioSource.disconnect();
+            console.log('AudioSource disconnected');
+        } catch (e) {
+            console.error('Error disconnecting AudioSource:', e);
         }
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                activeFragment = null;
-                updateFragmentList();
-                updateFragmentControls();
-                renderSourceFrame();
-                renderTargetFrame();
-            } else if (e.ctrlKey && e.key === 'z') {
-                undoAction();
-            } else if (e.key === ' ' && document.activeElement.tagName !== 'INPUT') {
-                e.preventDefault();
-                togglePlayPause();
+        audioSource = null;
+    }
+    if (audioDestination) {
+        try {
+            audioDestination.disconnect();
+            console.log('AudioDestination disconnected');
+        } catch (e) {
+            console.error('Error disconnecting AudioDestination:', e);
+        }
+        audioDestination = null;
+    }
+    if (audioCtx && audioCtx.state !== 'closed') {
+        try {
+            await audioCtx.close();
+            console.log('AudioContext closed');
+        } catch (e) {
+            console.error('Error closing AudioContext:', e);
+        }
+        audioCtx = null;
+    }
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => {
+            if (track.readyState === 'live') {
+                track.stop();
+                console.log('Video track stopped');
             }
         });
-
-        function undoAction() {
-            const action = undoStack.pop();
-            if (!action) return;
-
-            if (action.action === 'add') {
-                fragments = fragments.filter(f => f !== action.fragment);
-            } else if (action.action === 'remove') {
-                fragments.splice(action.index, 0, action.fragment);
-            } else if (action.action === 'edit') {
-                action.fragment[action.key] = action.oldValue;
-            } else if (action.action === 'lock') {
-                action.fragment.locked = action.oldLocked;
-            } else if (action.action === 'import') {
-                fragments = fragments.filter(f => !action.fragments.includes(f));
-            } else if (action.action === 'reset-timings') {
-                action.timings.forEach(({ fragment, start, end, bindStart, bindEnd }) => {
-                    fragment.start = start;
-                    fragment.end = end;
-                    fragment.bindStart = bindStart;
-                    fragment.bindEnd = bindEnd;
-                });
+        videoStream = null;
+    }
+    if (audioStream) {
+        audioStream.getTracks().forEach(track => {
+            if (track.readyState === 'live') {
+                track.stop();
+                console.log('Audio track stopped');
             }
+        });
+        audioStream = null;
+    }
 
-            activeFragment = fragments.includes(activeFragment) && !activeFragment.locked ? activeFragment : fragments.find(f => !f.locked) || null;
-            updateFragmentList();
-            updateTimeline();
-            renderSourceFrame();
-            renderTargetFrame();
-        }
+    reinitializeVideoElement();
 
+    cancelExportBtn.style.display = 'none';
+    exportBtn.disabled = false;
+    console.log('Export button enabled:', !exportBtn.disabled);
+    video.ontimeupdate = null;
+    status.textContent = 'Export completed or cancelled.';
+    status.classList.remove('error');
+
+    exportBtn.removeEventListener('click', processVideo);
+    exportBtn.addEventListener('click', processVideo);
+    console.log('Export button click event rebound');
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        activeFragment = null;
+        updateFragmentList();
+        updateFragmentControls();
         renderSourceFrame();
         renderTargetFrame();
-        bindVideoEvents();
-    </script>
+    } else if (e.ctrlKey && e.key === 'z') {
+        undoAction();
+    } else if (e.key === ' ' && document.activeElement.tagName !== 'INPUT') {
+        e.preventDefault();
+        togglePlayPause();
+    }
+});
+
+function undoAction() {
+    const action = undoStack.pop();
+    if (!action) return;
+
+    if (action.action === 'add') {
+        fragments = fragments.filter(f => f !== action.fragment);
+    } else if (action.action === 'remove') {
+        fragments.splice(action.index, 0, action.fragment);
+    } else if (action.action === 'edit') {
+        action.fragment[action.key] = action.oldValue;
+    } else if (action.action === 'lock') {
+        action.fragment.locked = action.oldLocked;
+    } else if (action.action === 'import') {
+        fragments = fragments.filter(f => !action.fragments.includes(f));
+    } else if (action.action === 'reset-timings') {
+        action.timings.forEach(({ fragment, start, end, bindStart, bindEnd }) => {
+            fragment.start = start;
+            fragment.end = end;
+            fragment.bindStart = bindStart;
+            fragment.bindEnd = bindEnd;
+        });
+    }
+
+    activeFragment = fragments.includes(activeFragment) && !activeFragment.locked ? activeFragment : fragments.find(f => !f.locked) || null;
+    updateFragmentList();
+    updateTimeline();
+    renderSourceFrame();
+    renderTargetFrame();
+}
+
+renderSourceFrame();
+renderTargetFrame();
+bindVideoEvents();
+</script>
 </body>
 </html>
