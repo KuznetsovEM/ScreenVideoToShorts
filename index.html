@@ -115,6 +115,8 @@
 
         .video-container {
             display: flex;
+            flex-direction: column;
+            align-items: center; /* Центрирует элементы по горизонтали */
             flex-wrap: wrap;
             gap: 25px;
             align-items: flex-start;
@@ -665,33 +667,35 @@
             <i class="fas fa-chevron-down"></i>
         </div>
         <div class="section-content active">
-            <div class="video-container">
-                <div class="video-wrapper">
-                    <video id="source-video" controls></video>
-                    <canvas id="source-canvas" class="source-canvas"></canvas>
-                </div>
-                    <div class="controls">
-                        <button class="custom-button secondary" id="play-pause" aria-label="Play or pause video"><i class="fas fa-play"></i> Play/Pause</button>
-                        <input type="range" id="seek-bar" min="0" value="0" aria-label="Seek video timeline">
-                        <span id="current-time">00:00</span>
-                        <div class="time-input-wrapper">
-                            <i class="fas fa-clock"></i>
-                            <input type="text" id="start-time-input" placeholder="mm:ss" aria-label="Set fragment start time">
-                        </div>
-                        <div class="time-input-wrapper">
-                            <i class="fas fa-clock"></i>
-                            <input type="text" id="end-time-input" placeholder="mm:ss" aria-label="Set fragment end time">
-                        </div>
-                        <button class="custom-button" id="add-fragment" aria-label="Add new video fragment"><i class="fas fa-plus"></i> Add Fragment</button>
-                        <div class="file-upload-wrapper">
-                            <button class="custom-button secondary" id="export-fragments" aria-label="Export fragments to JSON"><i class="fas fa-download"></i> Export</button>
-                        </div>
-                        <div class="file-upload-wrapper">
-                            <button class="custom-button secondary" id="import-fragments-btn" aria-label="Import fragments from JSON"><i class="fas fa-upload"></i> Import </button>
-                        </div>
-                        <input type="file" id="import-fragments" accept="application/json" style="display: none;">
+        <div class="video-container">
+            <div class="video-wrapper">
+                <video id="source-video" controls="" src="blob:https://kuznetsovem.github.io/700742b6-b112-470c-8ea9-036440ddc078" width="640" height="360"></video>
+                <canvas id="source-canvas" class="source-canvas" width="640" height="360"></canvas>
+            </div>
+            <div class="controls-wrapper">
+                <div class="controls">
+                    <button class="custom-button secondary" id="play-pause" aria-label="Play or pause video"><i class="fas fa-pause"></i> Play/Pause</button>
+                    <input type="range" id="seek-bar" min="0" value="0" aria-label="Seek video timeline" max="258.266667">
+                    <span id="current-time">01:11</span>
+                    <div class="time-input-wrapper">
+                        <i class="fas fa-clock"></i>
+                        <input type="text" id="start-time-input" placeholder="mm:ss" aria-label="Set fragment start time">
                     </div>
+                    <div class="time-input-wrapper">
+                        <i class="fas fa-clock"></i>
+                        <input type="text" id="end-time-input" placeholder="mm:ss" aria-label="Set fragment end time">
+                    </div>
+                    <button class="custom-button" id="add-fragment" aria-label="Add new video fragment"><i class="fas fa-plus"></i> Add Fragment</button>
+                    <div class="file-upload-wrapper">
+                        <button class="custom-button secondary" id="export-fragments" aria-label="Export fragments to JSON"><i class="fas fa-download"></i> Export</button>
+                    </div>
+                    <div class="file-upload-wrapper">
+                        <button class="custom-button secondary" id="import-fragments-btn" aria-label="Import fragments from JSON"><i class="fas fa-upload"></i> Import</button>
+                    </div>
+                    <input type="file" id="import-fragments" accept="application/json" style="display: none;">
                 </div>
+            </div>
+        </div>
             <div class="timeline" id="source-timeline">
                 <div class="timeline-range" id="timeline-range"></div>
                 <div class="handle" id="start-handle"></div>
